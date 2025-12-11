@@ -1,0 +1,124 @@
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           OmniA Backend Architecture                         │
+│                      Self-Management with Agentic RAG                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                                  ┌─────────────┐
+                                  │   Client    │
+                                  │  (Front-End)│
+                                  └──────┬──────┘
+                                         │
+                                         ▼
+                         ┌───────────────────────────────┐
+                         │       API Gateway :8000       │
+                         │  - Authentication (JWT)       │
+                         │  - Rate Limiting             │
+                         │  - Request Routing           │
+                         └───────────┬───────────────────┘
+                                     │
+                ┌────────────────────┼────────────────────┐
+                │                    │                    │
+                ▼                    ▼                    ▼
+     ┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐
+     │ Archive Service  │  │  Orchestrator   │  │  Vector DB       │
+     │     :8001        │  │    Service      │  │   Service        │
+     │                  │  │     :8004       │  │    :8003         │
+     │ - Text ingestion │  │                 │  │                  │
+     │ - File upload    │  │ - Query routing │  │ - Qdrant wrapper │
+     │ - Instagram      │  │ - Agent coord.  │  │ - Index mgmt     │
+     │   scraping       │  │ - LLM synthesis │  │ - Vector search  │
+     └────────┬─────────┘  └────────┬────────┘  └────────┬─────────┘
+              │                     │                     │
+              │                     │                     │
+     ┌────────▼─────────┐          │            ┌────────▼─────────┐
+     │   RabbitMQ       │          │            │     Qdrant       │
+     │  Message Queue   │          │            │  Vector Database │
+     └────────┬─────────┘          │            └──────────────────┘
+              │                     │
+              ▼                     │
+     ┌──────────────────┐          │
+     │ Embedding Service│          │
+     │     :8002        │          │
+     │                  │          │
+     │ - Consume queue  │          │
+     │ - Generate embed.│          │
+     │ - HuggingFace    │          │
+     │ - Ollama         │          │
+     └────────┬─────────┘          │
+              │                     │
+              ▼                     ▼
+     Store embeddings      ┌───────────────────┐
+     in Vector DB          │  Field Agents     │
+                           │                   │
+                           │ ┌───────────────┐ │
+                           │ │Personal :8010 │ │
+                           │ │- RAG for      │ │
+                           │ │  personal     │ │
+                           │ │  field        │ │
+                           │ └───────────────┘ │
+                           │                   │
+                           │ ┌───────────────┐ │
+                           │ │Work :8011     │ │
+                           │ │- RAG for      │ │
+                           │ │  work field   │ │
+                           │ └───────────────┘ │
+                           │                   │
+                           │ ┌───────────────┐ │
+                           │ │More agents... │ │
+                           │ │:8012+         │ │
+                           │ └───────────────┘ │
+                           └───────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Infrastructure Services                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+     ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+     │  PostgreSQL  │  │    Redis     │  │    MinIO     │  │   Ollama     │
+     │    :5432     │  │    :6379     │  │  :9000-9001  │  │   :11434     │
+     │              │  │              │  │              │  │              │
+     │ - Metadata   │  │ - Caching    │  │ - File       │  │ - LLM        │
+     │ - Archive DB │  │ - Sessions   │  │   storage    │  │ - Embeddings │
+     │              │  │ - Agent reg. │  │ - S3-compat  │  │              │
+     └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Data Flow                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+INGESTION FLOW:
+  Client → API Gateway → Archive Service → [PostgreSQL + MinIO]
+                                ↓
+                           RabbitMQ Queue
+                                ↓
+                        Embedding Service
+                                ↓
+                          Vector DB Service → Qdrant
+
+QUERY FLOW:
+  Client → API Gateway → Orchestrator → [Determine fields]
+                                ↓
+                          Field Agents (parallel)
+                                ↓
+                       [Vector Search + RAG]
+                                ↓
+                          Orchestrator → [Synthesize]
+                                ↓
+                           Client Response
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Technology Stack                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Language:      Python 3.11+
+  Framework:     FastAPI
+  Vector DB:     Qdrant (open-source)
+  LLM:           Ollama (llama2)
+  Embeddings:    HuggingFace + Ollama
+  Message Queue: RabbitMQ
+  Cache:         Redis
+  Database:      PostgreSQL
+  Storage:       MinIO (S3-compatible)
+  Deployment:    Docker + Docker Compose
+```

@@ -1,0 +1,266 @@
+version: '3.8'
+
+services:
+  # Infrastructure Services
+  
+  postgres:
+    image: postgres:16-alpine
+    container_name: omnia-postgres
+    environment:
+      POSTGRES_USER: omnia
+      POSTGRES_PASSWORD: omnia_password
+      POSTGRES_DB: omnia_archive
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnia -d omnia_archive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - omnia-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: omnia-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - omnia-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: omnia-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - omnia-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: omnia-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - omnia-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: omnia-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"   # HTTP API
+      - "6334:6334"   # gRPC
+    networks:
+      - omnia-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: omnia-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - omnia-network
+    # Note: After starting, you'll need to pull models:
+    # docker exec -it omnia-ollama ollama pull llama2
+
+  # Application Services
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: omnia-api-gateway
+    environment:
+      - JWT_SECRET=change-this-in-production-use-strong-secret
+      - REDIS_HOST=redis
+      - ARCHIVE_SERVICE_URL=http://archive-service:8001
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8002
+      - VECTOR_DB_SERVICE_URL=http://vector-db-service:8003
+      - ORCHESTRATOR_SERVICE_URL=http://orchestrator-service:8004
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  archive-service:
+    build:
+      context: ./archive-service
+      dockerfile: Dockerfile
+    container_name: omnia-archive-service
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://omnia:omnia_password@postgres:5432/omnia_archive
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    volumes:
+      - archive_uploads:/app/uploads
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - rabbitmq
+      - minio
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  embedding-service:
+    build:
+      context: ./embedding-service
+      dockerfile: Dockerfile
+    container_name: omnia-embedding-service
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - OLLAMA_URL=http://ollama:11434
+      - VECTOR_DB_SERVICE_URL=http://vector-db-service:8003
+    volumes:
+      - embedding_models:/app/models_cache
+    depends_on:
+      - rabbitmq
+      - ollama
+      - vector-db-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  vector-db-service:
+    build:
+      context: ./vector-db-service
+      dockerfile: Dockerfile
+    container_name: omnia-vector-db-service
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    ports:
+      - "8003:8003"
+    depends_on:
+      - qdrant
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  orchestrator-service:
+    build:
+      context: ./orchestrator-service
+      dockerfile: Dockerfile
+    container_name: omnia-orchestrator-service
+    environment:
+      - REDIS_HOST=redis
+      - OLLAMA_URL=http://ollama:11434
+      - VECTOR_DB_SERVICE_URL=http://vector-db-service:8003
+    ports:
+      - "8004:8004"
+    depends_on:
+      - redis
+      - ollama
+      - vector-db-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  # Example Field Agents
+  # Uncomment and configure as needed
+
+  # field-agent-personal:
+  #   build:
+  #     context: ./agents/field-agent-template
+  #     dockerfile: Dockerfile
+  #   container_name: omnia-agent-personal
+  #   environment:
+  #     - FIELD_NAME=personal
+  #     - PORT=8010
+  #     - SERVICE_NAME=field-agent-personal
+  #     - VECTOR_DB_SERVICE_URL=http://vector-db-service:8003
+  #     - OLLAMA_URL=http://ollama:11434
+  #     - ORCHESTRATOR_URL=http://orchestrator-service:8004
+  #   volumes:
+  #     - agent_models:/app/models_cache
+  #   ports:
+  #     - "8010:8010"
+  #   depends_on:
+  #     - vector-db-service
+  #     - ollama
+  #     - orchestrator-service
+  #   networks:
+  #     - omnia-network
+  #   restart: unless-stopped
+
+  # field-agent-work:
+  #   build:
+  #     context: ./agents/field-agent-template
+  #     dockerfile: Dockerfile
+  #   container_name: omnia-agent-work
+  #   environment:
+  #     - FIELD_NAME=work
+  #     - PORT=8011
+  #     - SERVICE_NAME=field-agent-work
+  #     - VECTOR_DB_SERVICE_URL=http://vector-db-service:8003
+  #     - OLLAMA_URL=http://ollama:11434
+  #     - ORCHESTRATOR_URL=http://orchestrator-service:8004
+  #   volumes:
+  #     - agent_models:/app/models_cache
+  #   ports:
+  #     - "8011:8011"
+  #   depends_on:
+  #     - vector-db-service
+  #     - ollama
+  #     - orchestrator-service
+  #   networks:
+  #     - omnia-network
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:
+  qdrant_data:
+  ollama_data:
+  archive_uploads:
+  embedding_models:
+  agent_models:
+
+networks:
+  omnia-network:
+    driver: bridge

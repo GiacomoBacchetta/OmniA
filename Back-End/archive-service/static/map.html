@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniA - Map View</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        .controls {
+            background: white;
+            padding: 15px 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .controls select,
+        .controls input,
+        .controls button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .controls button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .controls button:hover {
+            background: #5568d3;
+        }
+        
+        #map {
+            height: calc(100vh - 140px);
+            width: 100%;
+        }
+        
+        .marker-popup {
+            max-width: 300px;
+        }
+        
+        .marker-popup h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .marker-popup .field-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+        
+        .marker-popup .content {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 8px 0;
+        }
+        
+        .marker-popup .date {
+            color: #999;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .marker-popup .actions {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        .marker-popup .actions a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        
+        .marker-popup .actions a:hover {
+            text-decoration: underline;
+        }
+        
+        .stats {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            min-width: 150px;
+        }
+        
+        .stats h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .stats .number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        /* Custom marker colors by field */
+        .marker-icon-personal { background-color: #667eea; }
+        .marker-icon-work { background-color: #f093fb; }
+        .marker-icon-inspiration { background-color: #4facfe; }
+        .marker-icon-learning { background-color: #43e97b; }
+        .marker-icon-health { background-color: #fa709a; }
+        .marker-icon-finance { background-color: #feca57; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📍 OmniA Map View</h1>
+        <p>Visualize your archived items with location data</p>
+    </div>
+    
+    <div class="controls">
+        <select id="fieldFilter">
+            <option value="">All Fields</option>
+            <option value="personal">Personal</option>
+            <option value="work">Work</option>
+            <option value="inspiration">Inspiration</option>
+            <option value="learning">Learning</option>
+            <option value="health">Health</option>
+            <option value="finance">Finance</option>
+        </select>
+        
+        <input type="text" id="tagsFilter" placeholder="Filter by tags (comma-separated)">
+        
+        <button onclick="loadMarkers()">🔄 Refresh</button>
+        <button onclick="centerMap()">🎯 Center Map</button>
+    </div>
+    
+    <div class="stats">
+        <h3>Locations</h3>
+        <div class="number" id="markerCount">0</div>
+    </div>
+    
+    <div id="map"></div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([45.4642, 9.1900], 6); // Default: Milan, Italy
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        let markers = [];
+        let markerLayer = L.layerGroup().addTo(map);
+        
+        // Field colors
+        const fieldColors = {
+            personal: '#667eea',
+            work: '#f093fb',
+            inspiration: '#4facfe',
+            learning: '#43e97b',
+            health: '#fa709a',
+            finance: '#feca57'
+        };
+        
+        // Get API base URL (adjust if needed)
+        const API_BASE = window.location.origin.replace(':8080', ':8000');
+        
+        async function loadMarkers() {
+            const field = document.getElementById('fieldFilter').value;
+            const tags = document.getElementById('tagsFilter').value;
+            
+            try {
+                // Build query params
+                let url = `${API_BASE}/archive/map/all`;
+                const params = new URLSearchParams();
+                if (field) params.append('field', field);
+                if (tags) params.append('tags', tags);
+                if (params.toString()) url += '?' + params.toString();
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // Clear existing markers
+                markerLayer.clearLayers();
+                markers = data.markers;
+                
+                // Update stats
+                document.getElementById('markerCount').textContent = data.total;
+                
+                // Add markers to map
+                markers.forEach(marker => {
+                    const color = fieldColors[marker.field] || '#667eea';
+                    
+                    // Create custom icon
+                    const icon = L.divIcon({
+                        html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+                        className: '',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    
+                    // Create marker
+                    const leafletMarker = L.marker([marker.latitude, marker.longitude], { icon })
+                        .bindPopup(createPopupContent(marker))
+                        .addTo(markerLayer);
+                });
+                
+                // Center map if we have markers
+                if (data.center_latitude && data.center_longitude) {
+                    map.setView([data.center_latitude, data.center_longitude], 10);
+                }
+                
+            } catch (error) {
+                console.error('Error loading markers:', error);
+                alert('Failed to load markers. Make sure the API is running.');
+            }
+        }
+        
+        function createPopupContent(marker) {
+            const date = new Date(marker.created_at).toLocaleDateString();
+            const preview = marker.content_preview || 'No preview available';
+            
+            return `
+                <div class="marker-popup">
+                    <h3>${marker.title}</h3>
+                    <span class="field-badge">${marker.field}</span>
+                    <div class="content">${preview}</div>
+                    <div class="date">📅 ${date}</div>
+                    <div class="actions">
+                        <a href="#" onclick="copyCoords(${marker.latitude}, ${marker.longitude}); return false;">
+                            📋 Copy Coordinates
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function centerMap() {
+            if (markers.length > 0) {
+                const bounds = L.latLngBounds(markers.map(m => [m.latitude, m.longitude]));
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+        
+        function copyCoords(lat, lon) {
+            const coords = `${lat}, ${lon}`;
+            navigator.clipboard.writeText(coords).then(() => {
+                alert('Coordinates copied to clipboard!');
+            });
+        }
+        
+        // Load markers on page load
+        loadMarkers();
+        
+        // Add keyboard shortcut for refresh
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                loadMarkers();
+            }
+        });
+    </script>
+</body>
+</html>
