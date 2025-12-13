@@ -15,11 +15,17 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "llama2"
     
     # HuggingFace Configuration
-    HF_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    HF_MODEL: str = "google/gemma-2-2b-it"
     HF_CACHE_DIR: str = "/app/models_cache"
+    
+    # Embedding Strategy: "ollama" or "huggingface"
+    EMBEDDING_STRATEGY: str = "huggingface"  # Use HuggingFace with 768 dimensions
     
     # Vector DB Configuration
     VECTOR_DB_SERVICE_URL: str
+    
+    # Archive Service Configuration (for status callbacks)
+    ARCHIVE_SERVICE_URL: str = "http://archive-service:8001"
     
     # Processing Configuration
     BATCH_SIZE: int = 10

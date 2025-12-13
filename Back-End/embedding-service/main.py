@@ -6,9 +6,18 @@ from config import settings
 from services.embedding_generator import EmbeddingGenerator
 from services.vector_store import VectorStoreService
 
+print("=" * 60)
+print("EMBEDDING SERVICE - Initializing...")
+print("=" * 60)
+
 # Initialize services
+print("Loading embedding generator...")
 embedding_generator = EmbeddingGenerator()
+print("✓ Embedding generator loaded")
+
+print("Loading vector store service...")
 vector_store = VectorStoreService()
+print("✓ Vector store service loaded")
 
 
 async def process_message(message: aio_pika.IncomingMessage):
@@ -25,6 +34,8 @@ async def process_message(message: aio_pika.IncomingMessage):
                 data['content'],
                 data.get('content_type', 'text')
             )
+            
+            print(f"Sample embedding (first 5 dims): {embedding[:5]}...")
             
             # Store in vector database
             await vector_store.store_embedding(

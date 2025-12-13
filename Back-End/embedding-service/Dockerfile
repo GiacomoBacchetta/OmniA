@@ -18,5 +18,8 @@ COPY . .
 # Expose port
 EXPOSE 8002
 
+# Set Python to run in unbuffered mode
+ENV PYTHONUNBUFFERED=1
+
 # Run application
-CMD ["python", "main.py"]
+CMD ["python", "-u", "main.py"]

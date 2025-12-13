@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Archive, MessageSquare, Map, LogOut } from 'lucide-react'
+import { Archive, MessageSquare, Map, LogOut, Sparkles } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
 export default function Layout() {
@@ -12,43 +12,53 @@ export default function Layout() {
   ]
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-primary-600">OmniA</h1>
-          <p className="text-sm text-gray-500 mt-1">Your Personal Archive</p>
-        </div>
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Top Navigation Bar */}
+      <nav className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 shadow-lg">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
+                <Sparkles className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">OmniA</h1>
+                <p className="text-xs text-white/80">Your Personal Archive</p>
+              </div>
+            </div>
 
-        <nav className="flex-1 px-4 space-y-2">
-          {navLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-full transition-colors ${
-                  isActive
-                    ? 'bg-primary-50 text-primary-600 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }
+            {/* Navigation Links */}
+            <div className="flex items-center gap-2">
+              {navLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all duration-200 ${
+                      isActive
+                        ? 'bg-white text-blue-600 font-semibold shadow-md'
+                        : 'text-white hover:bg-white/20 backdrop-blur-sm'
+                    }`
+                  }
+                >
+                  <link.icon size={20} />
+                  <span className="font-medium">{link.label}</span>
+                </NavLink>
+              ))}
+            </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white hover:bg-white/20 backdrop-blur-sm transition-all duration-200"
             >
-              <link.icon size={20} />
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <LogOut size={20} />
-            Logout
-          </button>
+              <LogOut size={20} />
+              <span className="font-medium">Logout</span>
+            </button>
+          </div>
         </div>
-      </div>
+      </nav>
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">

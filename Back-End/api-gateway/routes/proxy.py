@@ -79,6 +79,39 @@ async def archive_map_proxy(request: Request):
     return await proxy_request(target_url, request)
 
 
+@router.delete("/archive/{item_id}")
+async def delete_archive_item_proxy(item_id: str, request: Request):
+    """Proxy delete requests to archive service"""
+    logger.info(f"[ARCHIVE DELETE] Deleting item: {item_id}")
+    logger.debug(f"[ARCHIVE DELETE] Client: {request.client.host}")
+    
+    target_url = f"{settings.ARCHIVE_SERVICE_URL}/api/v1/archive/{item_id}"
+    logger.info(f"[ARCHIVE DELETE] Forwarding to: {target_url}")
+    return await proxy_request(target_url, request)
+
+
+@router.put("/archive/{item_id}")
+async def update_archive_item_proxy(item_id: str, request: Request):
+    """Proxy update requests to archive service"""
+    logger.info(f"[ARCHIVE UPDATE] Updating item: {item_id}")
+    logger.debug(f"[ARCHIVE UPDATE] Client: {request.client.host}")
+    
+    target_url = f"{settings.ARCHIVE_SERVICE_URL}/api/v1/archive/{item_id}"
+    logger.info(f"[ARCHIVE UPDATE] Forwarding to: {target_url}")
+    return await proxy_request(target_url, request)
+
+
+@router.get("/files/{field}/{filename:path}")
+async def files_proxy(field: str, filename: str, request: Request):
+    """Proxy file requests to archive service"""
+    logger.info(f"[FILES] Serving file: {field}/{filename}")
+    logger.debug(f"[FILES] Client: {request.client.host}")
+    
+    target_url = f"{settings.ARCHIVE_SERVICE_URL}/api/v1/files/{field}/{filename}"
+    logger.info(f"[FILES] Forwarding to: {target_url}")
+    return await proxy_request(target_url, request)
+
+
 @router.api_route("/archive/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def archive_proxy(path: str, request: Request):
     """Proxy requests to archive service (catch-all)"""

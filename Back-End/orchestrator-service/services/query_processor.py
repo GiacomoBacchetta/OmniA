@@ -5,6 +5,12 @@ from typing import List, Dict, Optional
 from config import settings
 from services.agent_registry import AgentRegistry
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 logger = logging.getLogger(__name__)
 
 
@@ -105,6 +111,7 @@ class QueryProcessor:
         # For now, return all available fields
         # In production, implement intelligent field selection
         agents = await self.agent_registry.list_agents()
+        logger.info(f"Available agents for field determination: {[agent['field'] for agent in agents]}")
         return [agent["field"] for agent in agents]
     
     async def _query_agent(

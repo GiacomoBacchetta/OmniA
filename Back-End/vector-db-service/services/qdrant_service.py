@@ -49,9 +49,13 @@ class QdrantService:
             )
             print(f"Created collection: {collection_name}")
         except Exception as e:
-            # Collection might already exist
-            print(f"Collection creation error (might already exist): {e}")
-            raise
+            # Collection might already exist - only raise if it's not an "already exists" error
+            error_str = str(e).lower()
+            if "already exists" in error_str or "409" in error_str:
+                print(f"Collection '{collection_name}' already exists, skipping creation")
+            else:
+                print(f"Collection creation error: {e}")
+                raise
     
     async def delete_collection(self, collection_name: str):
         """Delete a collection"""
@@ -90,7 +94,13 @@ class QdrantService:
             await self.client.get_collection(collection_name=collection_name)
         except Exception:
             # Create collection if it doesn't exist
-            await self.create_collection(collection_name, len(vector))
+            try:
+                await self.create_collection(collection_name, len(vector))
+            except Exception as create_error:
+                # Collection might have been created by another request, try to get it again
+                if "already exists" not in str(create_error).lower():
+                    raise
+                # Collection exists now, continue with upsert
         
         point = PointStruct(
             id=point_id,

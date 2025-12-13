@@ -27,6 +27,22 @@ class InstagramArchiveRequest(BaseModel):
     location: Optional[LocationData] = None
 
 
+class UpdateArchiveRequest(BaseModel):
+    """Request to update an archive item"""
+    field: Optional[str] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    tags: Optional[List[str]] = None
+    location: Optional[LocationData] = None
+
+
+class EmbeddingStatusUpdate(BaseModel):
+    """Request to update embedding status"""
+    embedding_status: str  # pending, processing, completed, failed
+    embedding_created_at: Optional[str] = None
+    embedding_vector: Optional[List[float]] = None  # The embedding vector
+
+
 class ArchiveResponse(BaseModel):
     id: str
     field: str
@@ -36,6 +52,9 @@ class ArchiveResponse(BaseModel):
     file_url: Optional[str] = None
     message: Optional[str] = None
     location: Optional[LocationData] = None
+    embedding_status: Optional[str] = "pending"
+    embedding_created_at: Optional[datetime] = None
+    embedding_vector: Optional[List[float]] = None  # Include only when needed
     
     class Config:
         from_attributes = True

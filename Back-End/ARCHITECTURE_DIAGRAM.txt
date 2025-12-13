@@ -38,8 +38,8 @@
               │                     │
               ▼                     │
      ┌──────────────────┐          │
-     │ Embedding Service│          │
-     │     :8002        │          │
+     │ Embedding Worker │          │
+     │  (Background)    │          │
      │                  │          │
      │ - Consume queue  │          │
      │ - Generate embed.│          │

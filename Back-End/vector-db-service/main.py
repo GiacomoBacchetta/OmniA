@@ -1,9 +1,13 @@
 from fastapi import FastAPI, HTTPException, status
 from typing import List, Dict, Optional
 from pydantic import BaseModel
+import logging
 
 from config import settings
 from services.qdrant_service import QdrantService
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Initialize Qdrant service
 qdrant_service = QdrantService()
@@ -100,6 +104,9 @@ async def upsert_vector(field: str, request: UpsertRequest):
         )
         return {"message": "Vector upserted successfully", "id": request.id}
     except Exception as e:
+        print(f"ERROR in upsert_vector: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -107,6 +114,7 @@ async def upsert_vector(field: str, request: UpsertRequest):
 async def search_vectors(field: str, request: SearchRequest):
     """Search for similar vectors in the collection"""
     try:
+        logger.info(f"Searching collection: {field}, vector length: {len(request.vector)}, limit: {request.limit}")
         results = await qdrant_service.search(
             collection_name=field,
             query_vector=request.vector,
@@ -123,6 +131,7 @@ async def search_vectors(field: str, request: SearchRequest):
             for result in results
         ]
     except Exception as e:
+        logger.error(f"Search failed for collection {field}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 

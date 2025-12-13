@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
     
     # Collection Configuration
-    DEFAULT_VECTOR_SIZE: int = 384  # For sentence-transformers/all-MiniLM-L6-v2
+    DEFAULT_VECTOR_SIZE: int = 768  # For google/gemma-2-2b-it embeddings
     DISTANCE_METRIC: str = "Cosine"
     
     class Config:

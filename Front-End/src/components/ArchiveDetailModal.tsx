@@ -18,7 +18,7 @@ export default function ArchiveDetailModal({ item, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-gray-200">
           <div className="flex-1 pr-4">
@@ -113,7 +113,7 @@ export default function ArchiveDetailModal({ item, onClose }: Props) {
                 <MapPin size={16} />
                 Location
               </h3>
-              <div className="bg-gray-50 rounded-full p-4 border border-gray-200">
+              <div className="bg-gray-50 rounded-3xl p-4 border border-gray-200">
                 {item.location.address && (
                   <p className="text-gray-900 mb-2">{item.location.address}</p>
                 )}

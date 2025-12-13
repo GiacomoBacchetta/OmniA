@@ -1,9 +1,10 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status, Depends
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from typing import Optional, List
 import uuid
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
 from database import engine, get_db, Base
@@ -15,6 +16,8 @@ from services.location_service import LocationService
 from schemas import (
     TextArchiveRequest,
     InstagramArchiveRequest,
+    UpdateArchiveRequest,
+    EmbeddingStatusUpdate,
     ArchiveResponse,
     ArchiveListResponse,
     LocationData,
@@ -59,6 +62,18 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+def convert_minio_url_to_http(minio_url: Optional[str]) -> Optional[str]:
+    """Convert minio:// URL to HTTP URL for frontend access"""
+    if not minio_url or not minio_url.startswith("minio://"):
+        return minio_url
+    
+    # Extract path from minio://bucket/field/filename
+    path = minio_url.replace(f"minio://{settings.MINIO_BUCKET}/", "")
+    
+    # Return HTTP URL that points to our file serving endpoint through the API gateway
+    return f"http://localhost:8000/files/{path}"
+
+
 @app.get("/")
 async def root():
     return {
@@ -72,6 +87,32 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
+
+
+@app.get("/api/v1/files/{field}/{filename:path}")
+async def get_file(field: str, filename: str):
+    """Serve files from MinIO"""
+    try:
+        file_url = f"minio://{settings.MINIO_BUCKET}/{field}/{filename}"
+        
+        # Get file from MinIO
+        file_obj = file_service.get_file_object(file_url)
+        
+        # Get content type from MinIO metadata or guess from extension
+        content_type = file_obj.headers.get('Content-Type', 'application/octet-stream')
+        
+        return StreamingResponse(
+            file_obj.stream(),
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f"inline; filename={filename.split('/')[-1]}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File not found: {str(e)}"
+        )
 
 
 @app.post("/api/v1/archive/text", response_model=ArchiveResponse, status_code=status.HTTP_201_CREATED)
@@ -149,6 +190,8 @@ async def create_text_archive(
         title=archive_item.title,
         created_at=archive_item.created_at,
         location=location_response,
+        embedding_status=archive_item.embedding_status,
+        embedding_created_at=archive_item.embedding_created_at,
         message="Text archived successfully"
     )
 
@@ -246,14 +289,16 @@ async def create_file_archive(
         content_type=archive_item.content_type,
         title=archive_item.title,
         created_at=archive_item.created_at,
-        file_url=file_url,
+        file_url=convert_minio_url_to_http(file_url),
         location=location_response,
+        embedding_status=archive_item.embedding_status,
+        embedding_created_at=archive_item.embedding_created_at,
         message="File archived successfully"
     )
 
 
 @app.post("/api/v1/archive/instagram", response_model=ArchiveResponse, status_code=status.HTTP_201_CREATED)
-async def create_instagram_archive(request: InstagramArchiveRequest):
+async def create_instagram_archive(request: InstagramArchiveRequest, db: AsyncSession = Depends(get_db)):
     """
     Archive Instagram content
     
@@ -263,12 +308,8 @@ async def create_instagram_archive(request: InstagramArchiveRequest):
     - **tags**: Optional tags
     - **location**: Optional location data
     """
-    async for session in get_db():
-        db = session
-        break
-    
-    # Fetch Instagram content
-    instagram_data = await instagram_service.fetch_content(request.instagram_url)
+    # Fetch Instagram content - convert HttpUrl to string
+    instagram_data = await instagram_service.fetch_content(str(request.instagram_url))
     
     # Use provided location or extract from caption
     location_data = request.location
@@ -330,6 +371,8 @@ async def create_instagram_archive(request: InstagramArchiveRequest):
         title=archive_item.title,
         created_at=archive_item.created_at,
         location=location_response,
+        embedding_status=archive_item.embedding_status,
+        embedding_created_at=archive_item.embedding_created_at,
         message="Instagram content archived successfully"
     )
 
@@ -381,8 +424,10 @@ async def list_all_archive_items(
                 content_type=item.content_type,
                 title=item.title,
                 created_at=item.created_at,
-                file_url=item.file_url,
-                location=location_response
+                file_url=convert_minio_url_to_http(item.file_url),
+                location=location_response,
+                embedding_status=item.embedding_status,
+                embedding_created_at=item.embedding_created_at
             )
         )
     
@@ -435,8 +480,10 @@ async def list_archive_items_by_field(
                 content_type=item.content_type,
                 title=item.title,
                 created_at=item.created_at,
-                file_url=item.file_url,
-                location=location_response
+                file_url=convert_minio_url_to_http(item.file_url),
+                location=location_response,
+                embedding_status=item.embedding_status,
+                embedding_created_at=item.embedding_created_at
             )
         )
     
@@ -540,6 +587,134 @@ async def get_map_view(
         center_latitude=center_lat,
         center_longitude=center_lon
     )
+
+
+@app.delete("/api/v1/archive/{item_id}")
+async def delete_archive_item(item_id: str, db: AsyncSession = Depends(get_db)):
+    """Delete an archive item"""
+    from sqlalchemy import select
+    
+    # Find the item
+    query = select(ArchiveItem).where(ArchiveItem.id == item_id)
+    result = await db.execute(query)
+    item = result.scalar_one_or_none()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Archive item not found")
+    
+    # Delete associated file if exists
+    if item.file_url:
+        try:
+            await file_service.delete_file(item.file_url)
+        except Exception as e:
+            # Log but don't fail if file deletion fails
+            print(f"Warning: Could not delete file {item.file_url}: {e}")
+    
+    # Delete from database
+    await db.delete(item)
+    await db.commit()
+    
+    return JSONResponse(
+        status_code=200,
+        content={"message": "Archive item deleted successfully", "id": item_id}
+    )
+
+
+@app.put("/api/v1/archive/{item_id}", response_model=ArchiveResponse)
+async def update_archive_item(
+    item_id: str,
+    request: UpdateArchiveRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update an archive item"""
+    from sqlalchemy import select
+    
+    # Find the item
+    query = select(ArchiveItem).where(ArchiveItem.id == item_id)
+    result = await db.execute(query)
+    item = result.scalar_one_or_none()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Archive item not found")
+    
+    # Update fields if provided
+    if request.field is not None:
+        item.field = request.field
+    if request.title is not None:
+        item.title = request.title
+    if request.content is not None:
+        item.content = request.content
+    if request.tags is not None:
+        item.tags = request.tags
+    
+    # Update location if provided
+    if request.location is not None:
+        item.location_address = request.location.address
+        item.location_google_maps_url = request.location.google_maps_url
+        item.location_latitude = request.location.latitude
+        item.location_longitude = request.location.longitude
+    
+    await db.commit()
+    await db.refresh(item)
+    
+    # Prepare location data for response
+    location_response = None
+    if item.location_latitude and item.location_longitude:
+        location_response = LocationData(
+            address=item.location_address,
+            google_maps_url=item.location_google_maps_url,
+            latitude=item.location_latitude,
+            longitude=item.location_longitude
+        )
+    
+    return ArchiveResponse(
+        id=item.id,
+        field=item.field,
+        content_type=item.content_type,
+        title=item.title,
+        created_at=item.created_at,
+        file_url=convert_minio_url_to_http(item.file_url),
+        location=location_response,
+        embedding_status=item.embedding_status,
+        embedding_created_at=item.embedding_created_at
+    )
+
+
+@app.patch("/api/v1/archive/{item_id}/embedding-status", status_code=status.HTTP_200_OK)
+async def update_embedding_status(
+    item_id: str,
+    request: EmbeddingStatusUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update the embedding status of an archive item (called by embedding service)"""
+    from sqlalchemy import select
+    from datetime import datetime
+    
+    # Find the item
+    query = select(ArchiveItem).where(ArchiveItem.id == item_id)
+    result = await db.execute(query)
+    item = result.scalar_one_or_none()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Archive item not found")
+    
+    # Update embedding status
+    item.embedding_status = request.embedding_status
+    
+    if request.embedding_created_at:
+        item.embedding_created_at = datetime.fromisoformat(request.embedding_created_at.replace('Z', '+00:00'))
+    
+    if request.embedding_vector:
+        item.embedding_vector = request.embedding_vector
+    
+    await db.commit()
+    
+    return {
+        "message": "Embedding status updated",
+        "item_id": item_id,
+        "embedding_status": request.embedding_status,
+        "has_vector": request.embedding_vector is not None
+    }
 
 
 if __name__ == "__main__":

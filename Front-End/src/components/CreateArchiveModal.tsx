@@ -87,7 +87,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
       } else if (contentType === 'instagram') {
         await api.post('/archive/instagram', {
           field,
-          url,
+          instagram_url: url,
           title,
           tags: selectedTags,
         })
@@ -110,7 +110,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
           <h2 className="text-2xl font-bold text-gray-900">Add to Archive</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-700 hover:text-gray-900"
+            className="p-2 hover:bg-gray-100 rounded-3xl transition-colors text-gray-700 hover:text-gray-900"
           >
             <X size={24} />
           </button>
@@ -132,7 +132,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
                   key={type}
                   type="button"
                   onClick={() => setContentType(type as any)}
-                  className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-colors ${
+                  className={`p-4 border-2 rounded-3xl flex flex-col items-center gap-2 transition-colors ${
                     contentType === type
                       ? 'border-blue-600 bg-blue-50 text-blue-700'
                       : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
@@ -153,7 +153,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
             <select
               value={field}
               onChange={(e) => setField(e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-3xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               required
             >
               {fields.map(f => (
@@ -173,7 +173,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-3xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               required
             />
           </div>
@@ -188,7 +188,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={6}
-                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-3xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
                 placeholder="Include location data like addresses or Google Maps URLs for automatic map marking..."
                 required
               />
@@ -203,7 +203,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
               <input
                 type="file"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-3xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 required
               />
             </div>
@@ -219,7 +219,7 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://www.instagram.com/p/..."
-                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-3xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 required
               />
             </div>
@@ -230,13 +230,13 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tags
             </label>
-            <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-300 rounded-xl max-h-48 overflow-y-auto">
+            <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-300 rounded-3xl max-h-48 overflow-y-auto">
               {availableTags.map(tag => (
                 <button
                   key={tag}
                   type="button"
                   onClick={() => toggleTag(tag)}
-                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-3xl text-sm font-medium transition-all ${
                     selectedTags.includes(tag)
                       ? `${tagColors[tag] || 'bg-gray-200 text-gray-800'} ring-2 ring-offset-1 ring-blue-500`
                       : `${tagColors[tag] || 'bg-gray-100 text-gray-600'} hover:shadow-sm`
@@ -259,14 +259,14 @@ export default function CreateArchiveModal({ onClose, onSuccess }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-white border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 bg-white border border-gray-300 rounded-3xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-3xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Adding...' : 'Add to Archive'}
             </button>

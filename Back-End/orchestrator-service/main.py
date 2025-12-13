@@ -11,7 +11,12 @@ from services.agent_registry import AgentRegistry
 from services.query_processor import QueryProcessor
 from schemas import QueryRequest, QueryResponse, AgentRegistration
 
-# Configure logger
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 logger = logging.getLogger(__name__)
 
 # Initialize services

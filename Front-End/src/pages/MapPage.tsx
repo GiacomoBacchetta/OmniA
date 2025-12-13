@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { Icon } from 'leaflet'
+import { Map as MapIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../lib/api'
 import { MapMarker } from '../types'
@@ -68,52 +69,65 @@ export default function MapPage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Map View</h1>
-            <p className="text-gray-600 mt-1">{markers.length} locations found</p>
-          </div>
-          <select
-            value={selectedField}
-            onChange={(e) => setSelectedField(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-center"
-          >
-            <option value="">All Fields</option>
-            {fields.map(field => (
-              <option key={field} value={field}>
-                {field.charAt(0).toUpperCase() + field.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Legend */}
-        <div className="flex gap-4 mt-4 flex-wrap">
-          {fields.map(field => (
-            <div key={field} className="flex items-center gap-2">
-              <div 
-                className="w-4 h-4 rounded-full" 
-                style={{ backgroundColor: fieldColors[field] }}
-              />
-              <span className="text-sm text-gray-600 capitalize">{field}</span>
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
+        <div className="px-8 py-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              {/* <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Map View
+              </h1> */}
+            <p className="text-purple-600 font-medium mt-2">{markers.length} locations found</p>
             </div>
-          ))}
+            
+            <select
+              value={selectedField}
+              onChange={(e) => setSelectedField(e.target.value)}
+              className="px-6 py-3 bg-white/90 backdrop-blur-sm border border-purple-200 rounded-full text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-center font-medium shadow-sm transition-all cursor-pointer hover:border-purple-300"
+            >
+              <option value="">All Fields</option>
+              {fields.map(field => (
+                <option key={field} value={field}>
+                  {field.charAt(0).toUpperCase() + field.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Legend */}
+          <div className="flex gap-4 flex-wrap">
+            {fields.map(field => (
+              <div key={field} className="flex items-center gap-2 px-3 py-1.5 bg-white/60 backdrop-blur-sm rounded-full shadow-sm border border-purple-100">
+                <div 
+                  className="w-3 h-3 rounded-full shadow-sm" 
+                  style={{ backgroundColor: fieldColors[field] }}
+                />
+                <span className="text-sm text-gray-700 capitalize font-medium">{field}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Map */}
       <div className="flex-1 relative">
         {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-200"></div>
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-purple-600 absolute top-0"></div>
+            </div>
           </div>
         ) : markers.length === 0 ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
-            <p className="text-xl">No locations found</p>
-            <p className="text-sm mt-2">Archive items with location data will appear here</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="bg-gradient-to-br from-purple-100 to-pink-100 p-6 rounded-full mb-4">
+              <MapIcon className="text-purple-600" size={64} />
+            </div>
+            <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              No locations found
+            </p>
+            <p className="text-sm mt-2 text-gray-500">Archive items with location data will appear here</p>
           </div>
         ) : (
           <MapContainer

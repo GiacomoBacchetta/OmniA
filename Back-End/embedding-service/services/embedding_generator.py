@@ -22,21 +22,28 @@ class EmbeddingGenerator:
         Generate embedding for text
         
         Strategy:
-        - Use HuggingFace for fast, consistent embeddings
-        - Optionally use Ollama for more sophisticated embeddings
+        - Use Ollama for large embeddings if configured
+        - Fallback to HuggingFace for fast, consistent embeddings
         """
         try:
-            # Primary method: HuggingFace
-            embedding = await self._generate_hf_embedding(text)
-            return embedding
+            # Check embedding strategy from settings
+            if settings.EMBEDDING_STRATEGY == "ollama":
+                return await self._generate_ollama_embedding(text)
+            else:
+                return await self._generate_hf_embedding(text)
         
         except Exception as e:
-            print(f"Error generating embedding: {e}")
-            # Fallback to Ollama if HF fails
+            print(f"Error generating embedding with {settings.EMBEDDING_STRATEGY}: {e}")
+            # Fallback to alternative method
             try:
-                return await self._generate_ollama_embedding(text)
-            except Exception as ollama_error:
-                print(f"Ollama fallback also failed: {ollama_error}")
+                if settings.EMBEDDING_STRATEGY == "ollama":
+                    print("Falling back to HuggingFace...")
+                    return await self._generate_hf_embedding(text)
+                else:
+                    print("Falling back to Ollama...")
+                    return await self._generate_ollama_embedding(text)
+            except Exception as fallback_error:
+                print(f"Fallback also failed: {fallback_error}")
                 raise
     
     async def _generate_hf_embedding(self, text: str) -> List[float]:
@@ -48,7 +55,19 @@ class EmbeddingGenerator:
         
         # Generate embedding
         embedding = self.hf_model.encode(text, convert_to_tensor=False)
-        return embedding.tolist()
+        embedding_list = embedding.tolist()
+        
+        # Ensure 768 dimensions (gemma-2-2b-it produces 768d embeddings)
+        # If the model produces different dimensions, pad or truncate
+        target_dim = 768
+        if len(embedding_list) < target_dim:
+            # Pad with zeros
+            embedding_list.extend([0.0] * (target_dim - len(embedding_list)))
+        elif len(embedding_list) > target_dim:
+            # Truncate to target dimension
+            embedding_list = embedding_list[:target_dim]
+        
+        return embedding_list
     
     async def _generate_ollama_embedding(self, text: str) -> List[float]:
         """Generate embedding using Ollama"""

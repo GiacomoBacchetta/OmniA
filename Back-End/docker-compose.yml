@@ -157,9 +157,12 @@ services:
     volumes:
       - embedding_models:/app/models_cache
     depends_on:
-      - rabbitmq
-      - ollama
-      - vector-db-service
+      rabbitmq:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+      vector-db-service:
+        condition: service_started
     networks:
       - omnia-network
     restart: unless-stopped
@@ -199,56 +202,138 @@ services:
       - omnia-network
     restart: unless-stopped
 
-  # Example Field Agents
-  # Uncomment and configure as needed
+  # Field Agents
 
-  # field-agent-personal:
-  #   build:
-  #     context: ./agents/field-agent-template
-  #     dockerfile: Dockerfile
-  #   container_name: omnia-agent-personal
-  #   environment:
-  #     - FIELD_NAME=personal
-  #     - PORT=8010
-  #     - SERVICE_NAME=field-agent-personal
-  #     - VECTOR_DB_SERVICE_URL=http://vector-db-service:8003
-  #     - OLLAMA_URL=http://ollama:11434
-  #     - ORCHESTRATOR_URL=http://orchestrator-service:8004
-  #   volumes:
-  #     - agent_models:/app/models_cache
-  #   ports:
-  #     - "8010:8010"
-  #   depends_on:
-  #     - vector-db-service
-  #     - ollama
-  #     - orchestrator-service
-  #   networks:
-  #     - omnia-network
-  #   restart: unless-stopped
+  personal-agent:
+    build:
+      context: ./agents/personal-agent
+      dockerfile: Dockerfile
+    container_name: omnia-agent-personal
+    env_file:
+      - ./agents/personal-agent/.env
+    ports:
+      - "8010:8010"
+    depends_on:
+      - vector-db-service
+      - ollama
+      - orchestrator-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
 
-  # field-agent-work:
-  #   build:
-  #     context: ./agents/field-agent-template
-  #     dockerfile: Dockerfile
-  #   container_name: omnia-agent-work
-  #   environment:
-  #     - FIELD_NAME=work
-  #     - PORT=8011
-  #     - SERVICE_NAME=field-agent-work
-  #     - VECTOR_DB_SERVICE_URL=http://vector-db-service:8003
-  #     - OLLAMA_URL=http://ollama:11434
-  #     - ORCHESTRATOR_URL=http://orchestrator-service:8004
-  #   volumes:
-  #     - agent_models:/app/models_cache
-  #   ports:
-  #     - "8011:8011"
-  #   depends_on:
-  #     - vector-db-service
-  #     - ollama
-  #     - orchestrator-service
-  #   networks:
-  #     - omnia-network
-  #   restart: unless-stopped
+  work-agent:
+    build:
+      context: ./agents/work-agent
+      dockerfile: Dockerfile
+    container_name: omnia-agent-work
+    env_file:
+      - ./agents/work-agent/.env
+    environment:
+      - PORT=8011
+    ports:
+      - "8011:8011"
+    depends_on:
+      - vector-db-service
+      - ollama
+      - orchestrator-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  learning-agent:
+    build:
+      context: ./agents/learning-agent
+      dockerfile: Dockerfile
+    container_name: omnia-agent-learning
+    env_file:
+      - ./agents/learning-agent/.env
+    environment:
+      - PORT=8012
+    ports:
+      - "8012:8012"
+    depends_on:
+      - vector-db-service
+      - ollama
+      - orchestrator-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  health-agent:
+    build:
+      context: ./agents/health-agent
+      dockerfile: Dockerfile
+    container_name: omnia-agent-health
+    env_file:
+      - ./agents/health-agent/.env
+    environment:
+      - PORT=8013
+    ports:
+      - "8013:8013"
+    depends_on:
+      - vector-db-service
+      - ollama
+      - orchestrator-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  inspiration-agent:
+    build:
+      context: ./agents/inspiration-agent
+      dockerfile: Dockerfile
+    container_name: omnia-agent-inspiration
+    env_file:
+      - ./agents/inspiration-agent/.env
+    environment:
+      - PORT=8014
+    ports:
+      - "8014:8014"
+    depends_on:
+      - vector-db-service
+      - ollama
+      - orchestrator-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  finance-agent:
+    build:
+      context: ./agents/finance-agent
+      dockerfile: Dockerfile
+    container_name: omnia-agent-finance
+    env_file:
+      - ./agents/finance-agent/.env
+    environment:
+      - PORT=8015
+    ports:
+      - "8015:8015"
+    depends_on:
+      - vector-db-service
+      - ollama
+      - orchestrator-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
+
+  restaurant-agent:
+    build:
+      context: ./agents/restaurant-agent
+      dockerfile: Dockerfile
+    container_name: omnia-agent-restaurant
+    env_file:
+      - ./agents/restaurant-agent/.env
+    environment:
+      - PORT=8016
+    ports:
+      - "8016:8016"
+    depends_on:
+      - vector-db-service
+      - ollama
+      - orchestrator-service
+    networks:
+      - omnia-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

@@ -6,6 +6,7 @@ import magic
 import uuid
 from typing import Optional
 import io
+from datetime import timedelta
 
 
 class FileService:
@@ -77,6 +78,30 @@ class FileService:
             self.client.remove_object(settings.MINIO_BUCKET, object_name)
         except S3Error as e:
             print(f"Error deleting file: {e}")
+    
+    def get_presigned_url(self, file_url: str, expires: int = 3600) -> str:
+        """Generate a presigned URL for file access"""
+        try:
+            # Extract object name from URL
+            object_name = file_url.replace(f"minio://{settings.MINIO_BUCKET}/", "")
+            url = self.client.presigned_get_object(
+                settings.MINIO_BUCKET,
+                object_name,
+                expires=timedelta(seconds=expires)
+            )
+            return url
+        except S3Error as e:
+            raise Exception(f"Failed to generate presigned URL: {e}")
+    
+    def get_file_object(self, file_url: str):
+        """Get file object from MinIO"""
+        try:
+            # Extract object name from URL
+            object_name = file_url.replace(f"minio://{settings.MINIO_BUCKET}/", "")
+            response = self.client.get_object(settings.MINIO_BUCKET, object_name)
+            return response
+        except S3Error as e:
+            raise Exception(f"Failed to get file: {e}")
     
     async def extract_text(self, file: UploadFile) -> str:
         """Extract text content from file"""

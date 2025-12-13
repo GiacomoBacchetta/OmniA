@@ -24,6 +24,11 @@ class ArchiveItem(Base):
     location_longitude = Column(Float)  # Longitude coordinate
     location_metadata = Column(JSON)  # Additional location info (place_id, etc.)
     
+    # Embedding status and vector
+    embedding_status = Column(String, default="pending")  # pending, processing, completed, failed
+    embedding_created_at = Column(DateTime(timezone=True))  # When embedding was created
+    embedding_vector = Column(JSON)  # The embedding vector stored as JSON array
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
